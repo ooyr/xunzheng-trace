@@ -42,6 +42,11 @@ function searchHttpError(status: number): ApiError {
 }
 
 async function searchProviderJson(response: Response): Promise<Record<string, unknown>> {
+  // 重定向不代表搜索结果；不读取正文或跟随 Location，避免泄露鉴权信息。
+  if (response.status >= 300 && response.status < 400) {
+    await response.body?.cancel();
+    throw searchHttpError(response.status);
+  }
   let body: unknown;
   try { body = JSON.parse(await readTextBody(response, 2_000_000)); }
   catch {
@@ -104,7 +109,7 @@ export async function runSearch(request: SearchRequest, fetcher: typeof fetch = 
   const headers = key ? { Authorization: `Bearer ${key}`, "Content-Type": "application/json; charset=UTF-8" } : tc3Headers({ secretId, secretKey, host: new URL(endpoint).host, service: "wsa", action: "SearchPro", version: "2025-05-08", body: serialized });
   let response: Response;
   try {
-    response = await fetcher(endpoint, { method: "POST", headers, body: serialized, signal: AbortSignal.timeout(25_000), redirect: "error" });
+    response = await fetcher(endpoint, { method: "POST", headers, body: serialized, signal: AbortSignal.timeout(25_000), redirect: "manual" });
   } catch { throw new ApiError(504, "元宝搜索连接失败或超时。未自动重试，以避免重复消耗额度。", "SEARCH_TIMEOUT"); }
   const body = await searchProviderJson(response);
   if (!body.Response || typeof body.Response !== "object" || Array.isArray(body.Response)) throw new ApiError(502, "元宝搜索返回结构不正确。", "INVALID_SEARCH_RESPONSE");

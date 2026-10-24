@@ -49,7 +49,7 @@ test("TC3搜索发送官方地址、公共头和同一UTF-8请求体，只调用
       calls++;
       assert.equal(url, "https://wsa.tencentcloudapi.com/");
       assert.equal(options.method, "POST");
-      assert.equal(options.redirect, "error");
+      assert.equal(options.redirect, "manual");
       assert.equal(options.body, '{"Query":"长城","Site":"bilibili.com"}');
       // 额外固定向量由独立Python标准库hashlib/hmac计算，覆盖SearchPro接线及中文请求体。
       assert.deepEqual(options.headers, {

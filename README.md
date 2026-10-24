@@ -54,7 +54,7 @@ TokLens 手册的文字示例为 `deepseek-v4.1-flash`；是否可用以你的 K
 
 | 路径 | 方法 | 说明 |
 | --- | --- | --- |
-| `/api/status` | GET | 返回配置状态，不验证账户额度，不泄露密钥 |
+| `/api/status` | GET | 返回配置状态；可选 `?probe=1` 检查模型列表是否可达，不验证账户额度 |
 | `/api/plan` | POST | `{ input, url?, image?, sources }` → 计划、模式与提示 |
 | `/api/search` | POST | `{ query, sources, stepId?, limit? }` → 来源列表、实际调用次数与 RequestId |
 | `/api/chat` | POST | `{ message, session? }` → `{ reply, session, mode }` |

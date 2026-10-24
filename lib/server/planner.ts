@@ -53,7 +53,8 @@ export async function createPlan(request: PlanRequest, fetcher: typeof fetch = f
   const content = request.image ? [{ type: "text", text: context }, { type: "image_url", image_url: { url: request.image } }] : context;
   let response: Response;
   try {
-    response = await fetcher(`${base}/chat/completions`, { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json; charset=UTF-8" }, body: JSON.stringify({ model, messages: [{ role: "system", content: system }, { role: "user", content }], stream: false, max_tokens: 2200 }), signal: AbortSignal.timeout(45_000), redirect: "error" });
+    // Workers 不支持 error 模式；手动模式保留 3xx，由响应校验拒绝且不转发密钥。
+    response = await fetcher(`${base}/chat/completions`, { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json; charset=UTF-8" }, body: JSON.stringify({ model, messages: [{ role: "system", content: system }, { role: "user", content }], stream: false, max_tokens: 2200 }), signal: AbortSignal.timeout(45_000), redirect: "manual" });
   } catch { throw new ApiError(504, "模型连接失败或超时，请检查服务端地址后重试。", "MODEL_TIMEOUT"); }
   const body = await providerJson(response, "TokLens");
   const answer = body.choices?.[0]?.message?.content;
