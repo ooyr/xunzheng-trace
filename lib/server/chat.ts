@@ -6,6 +6,7 @@ import { parseSources, SOURCE_LABELS } from "./sources";
 
 export interface ChatSession { question?: string; sources?: SourceId[]; steps?: PlanStep[]; cursor?: number; evidence?: Evidence[]; }
 export interface ChatResult { reply: string; session: ChatSession; mode: "demo" | "live" | "unconfigured"; }
+export interface ChatCommandHooks { beforePlan?: () => Promise<unknown>; beforeSearch?: () => Promise<unknown>; }
 export const CHAT_MENU = "欢迎来到循证调查局。\n\n发送「新建 你想核查的说法」开启调查。\n来源：1 官方与学术 / 2 新闻媒体 / 3 小红书 / 4 B站 / 5 全网\n发送「来源 1,2」切换范围。\n发送「下一步」逐步检索，发送「报告」查看证据。\n\n这是网页文字冒险模拟器；真实微信公众号消息尚未接入。";
 
 function parseSession(raw: unknown): ChatSession {
@@ -38,7 +39,7 @@ function parseSession(raw: unknown): ChatSession {
   return { question: question || undefined, sources, steps, cursor, evidence };
 }
 
-export async function chatCommand(raw: Record<string, unknown>): Promise<ChatResult> {
+export async function chatCommand(raw: Record<string, unknown>, hooks: ChatCommandHooks = {}): Promise<ChatResult> {
   const message = textField(raw.message, "消息", 12000, true);
   const session = parseSession(raw.session);
   if (["帮助", "菜单", "开始", "help", "/start"].includes(message.toLowerCase())) return { reply: CHAT_MENU, session, mode: "demo" };
@@ -52,7 +53,10 @@ export async function chatCommand(raw: Record<string, unknown>): Promise<ChatRes
   }
   if (/^(新建|调查)\s*/.test(message) || !session.question && !["报告", "下一步", "检索"].includes(message)) {
     const question = message.replace(/^(新建|调查)\s*/, "").trim();
-    const plan = await createPlan(validatePlan({ input: question, sources: session.sources }));
+    const planRequest = validatePlan({ input: question, sources: session.sources });
+    // 所有收费入口复用同一配额检查，不能信任客户端提交的文字会话状态。
+    await hooks.beforePlan?.();
+    const plan = await createPlan(planRequest);
     const nextSession: ChatSession = { question, sources: session.sources, steps: plan.steps, cursor: 0, evidence: [] };
     return { reply: `调查已建立：${plan.title}\n\n${plan.steps.map((step, index) => `${index + 1}. ${step.title}`).join("\n")}\n\n${plan.notice || "计划已生成。"}\n\n发送「来源 1,2」选择范围，再发「下一步」检索。`, session: nextSession, mode: plan.mode };
   }
@@ -65,6 +69,7 @@ export async function chatCommand(raw: Record<string, unknown>): Promise<ChatRes
     const cursor = session.cursor || 0;
     const step = session.steps?.[cursor];
     if (!step) return { reply: session.question ? "当前计划已执行完毕。发送「报告」查看证据记录；仍需核对原文再下结论。" : "请先发送「新建 你想核查的说法」。", session, mode: "demo" };
+    await hooks.beforeSearch?.();
     const result = await runSearch({ query: step.query, sources: session.sources || ["official", "news"], stepId: step.id, limit: 6 });
     if (result.mode === "unconfigured") return { reply: `${step.title}\n检索词：${step.query}\n\n${result.notice}\n可先回到网页手动添加来源。`, session, mode: "unconfigured" };
     const oldEvidence = session.evidence || [];

@@ -1,4 +1,9 @@
-// Intentionally empty by default.
-// Add Drizzle tables here when the site actually needs a database.
-// See examples/d1/db/schema.ts for an opt-in example.
-export {};
+import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
+
+// 账号、会话和配额只在服务端读取，客户端不会接触密码摘要或会话摘要。
+export const users = sqliteTable("trace_users", { id: text("id").primaryKey(), username: text("username").notNull().unique(), passwordHash: text("password_hash").notNull(), salt: text("salt").notNull(), createdAt: text("created_at").notNull() });
+export const sessions = sqliteTable("trace_sessions", { tokenHash: text("token_hash").primaryKey(), userId: text("user_id").notNull().references(() => users.id), expiresAt: text("expires_at").notNull(), createdAt: text("created_at").notNull() }, (table) => [index("trace_sessions_user_idx").on(table.userId)]);
+export const limits = sqliteTable("trace_limits", { key: text("key").primaryKey(), used: integer("used").notNull().default(0), resetAt: text("reset_at").notNull() });
+export const cloudCases = sqliteTable("trace_cloud_cases", { userId: text("user_id").primaryKey().references(() => users.id), payload: text("payload").notNull(), updatedAt: text("updated_at").notNull() });
+export const monitorJobs = sqliteTable("trace_monitor_jobs", { id: text("id").primaryKey(), userId: text("user_id").notNull().references(() => users.id), title: text("title").notNull(), query: text("query").notNull(), sources: text("sources").notNull(), intervalHours: integer("interval_hours").notNull(), caseId: text("case_id"), enabled: integer("enabled").notNull().default(1), snapshot: text("snapshot").notNull().default("[]"), hasBaseline: integer("has_baseline").notNull().default(0), createdAt: text("created_at").notNull(), lastRunAt: text("last_run_at"), nextRunAt: text("next_run_at").notNull(), unreadCount: integer("unread_count").notNull().default(0), lastError: text("last_error"), leaseUntil: text("lease_until") }, (table) => [index("trace_monitor_owner_idx").on(table.userId), index("trace_monitor_due_idx").on(table.enabled, table.nextRunAt)]);
+export const monitorRuns = sqliteTable("trace_monitor_runs", { id: text("id").primaryKey(), monitorId: text("monitor_id").notNull().references(() => monitorJobs.id), createdAt: text("created_at").notNull(), status: text("status").notNull(), newCount: integer("new_count").notNull().default(0), changedCount: integer("changed_count").notNull().default(0), removedCount: integer("removed_count").notNull().default(0), requestId: text("request_id"), summary: text("summary").notNull(), items: text("items").notNull() }, (table) => [index("trace_monitor_runs_job_idx").on(table.monitorId, table.createdAt)]);
