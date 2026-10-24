@@ -148,6 +148,10 @@ function commit(value: unknown, label: string, budget: Budget): Commit {
   };
   const stepId = optionalId(own(data, "stepId"), `${label}步骤标识`, budget);
   if (stepId !== undefined) result.stepId = stepId;
+  const searchMode = own(data, "searchMode");
+  const requestId = own(data, "requestId");
+  if (searchMode !== undefined) result.searchMode = enumeration(searchMode, `${label}检索模式`, ["live"] as const);
+  if (requestId !== undefined) result.requestId = string(requestId, `${label}请求标识`, 256, budget);
   return result;
 }
 
