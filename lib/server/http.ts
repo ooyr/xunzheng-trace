@@ -1,5 +1,5 @@
 export class ApiError extends Error {
-  constructor(public status: number, message: string, public code = "REQUEST_FAILED") { super(message); }
+  constructor(public status: number, message: string, public code = "REQUEST_FAILED", public providerCode?: string) { super(message); }
 }
 
 export async function readTextBody(request: Pick<Request, "headers" | "body">, maxBytes = 32_000): Promise<string> {
@@ -38,7 +38,7 @@ export function jsonResponse(value: unknown, status = 200): Response {
 }
 
 export function errorResponse(error: unknown): Response {
-  if (error instanceof ApiError) return jsonResponse({ error: error.message, code: error.code }, error.status);
+  if (error instanceof ApiError) return jsonResponse({ error: error.message, code: error.code, ...(error.providerCode ? { providerCode: error.providerCode } : {}) }, error.status);
   return jsonResponse({ error: "服务暂时不可用，请稍后重试。", code: "INTERNAL_ERROR" }, 500);
 }
 

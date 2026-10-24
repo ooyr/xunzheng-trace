@@ -14,6 +14,7 @@ const wechat = await importTypeScript(path.join(root, "lib/server/wechat.ts"));
 const chat = await importTypeScript(path.join(root, "lib/server/chat.ts"));
 
 async function withEnv(values, run) {
+  values = { TENCENT_SECRET_ID: undefined, TENCENT_SECRET_KEY: undefined, TENCENTCLOUD_SECRET_ID: undefined, TENCENTCLOUD_SECRET_KEY: undefined, TENCENT_WSA_ENDPOINT: undefined, ...values };
   const before = {};
   for (const [name, value] of Object.entries(values)) { before[name] = process.env[name]; if (value === undefined) delete process.env[name]; else process.env[name] = value; }
   try { return await run(); }

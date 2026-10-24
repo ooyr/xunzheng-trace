@@ -6,7 +6,7 @@
 
 - 输入文字、网页链接或截图，生成 2–6 步调查计划；可编辑查询词。
 - TokLens 兼容 API 计划拆解；视觉模型单独配置。未配置时明确使用规则模板。
-- 腾讯云元宝 SearchPro 真实接口适配。每次点击检索只发起一次请求，不自动重试；未配置密钥时返回空结果。
+- 腾讯云元宝 SearchPro 真实接口适配，支持服务 API Key 和腾讯云 TC3 签名两种鉴权。每次点击检索只发起一次请求，不自动重试；未配置密钥时返回空结果。
 - 官方与机构、新闻媒体、小红书、B 站和全网来源范围；按结果实际域名再次过滤。单选小红书或 B 站使用 Site 参数。
 - Git 式提交图、从历史节点创建分支、切换分支、双父节点合并与证据可达性。
 - 可点击原文、人工标记支持/反驳/背景、手动收录资料、Markdown 报告。
@@ -37,9 +37,14 @@ npm run dev
 | `TOKLENS_BASE_URL` | DeepSeek/GLM/Grok：`https://hkg.toklens.ai/v1`；GPT/Codex：`https://lax.toklens.ai/v1` |
 | `TOKLENS_MODEL` | 从控制台或 `/models` 确认的文字模型名 |
 | `TOKLENS_VISION_MODEL` | 可选，确认支持聊天图片输入的视觉模型 |
-| `YUANBAO_API_KEY` | 元宝搜索的服务 API KEY，不是腾讯云 SecretId/SecretKey，也不是邀请码 |
+| `YUANBAO_API_KEY` | 可选：元宝搜索服务 API KEY；与下面的腾讯云签名密钥二选一，有此项时优先使用 |
+| `TENCENT_SECRET_ID` | 腾讯云签名方式的 SecretId，与 SecretKey 成对配置 |
+| `TENCENT_SECRET_KEY` | 腾讯云签名方式的 SecretKey，仅限服务端 |
+| `TENCENT_WSA_ENDPOINT` | 签名方式固定使用 `https://wsa.tencentcloudapi.com/`，不接受任意网关 |
 | `YUANBAO_SEARCH_ENDPOINT` | 默认 `https://api.wsa.cloud.tencent.com/SearchPro`，可替换经确认兼容的端口 |
 | `WECHAT_TOKEN` | 公众号明文回调校验 Token，可留空 |
+
+腾讯云密钥所属账号需已开通元宝搜索并具有调用权限。TC3 模式不使用 `YUANBAO_SEARCH_ENDPOINT`，仍兼容原有服务 API KEY 方式；两种方式都不会自动重试。
 
 TokLens 手册的文字示例为 `deepseek-v4.1-flash`；是否可用以你的 Key 权限及模型列表为准。文字模型不保证识别图片。图片只在计划请求中发送给配置的视觉模型，不保存进档案。
 
