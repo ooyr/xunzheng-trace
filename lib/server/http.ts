@@ -75,7 +75,14 @@ export function upstreamEndpoint(value: string, fallback: string): string {
 export async function providerJson(response: Response, provider: string): Promise<Record<string, any>> {
   if (!response.ok) {
     const status = response.status;
-    const message = status === 401 || status === 403 ? `${provider}鉴权失败，请检查服务端密钥与模型权限。` : status === 429 ? `${provider}请求过于频繁或额度不足，请稍后重试并检查额度。` : `${provider}暂时不可用（HTTP ${status}）。`;
+    // 仅根据状态使用固定文案，不读取或转发可能含密钥的上游正文。
+    // 403 还可能来自服务限制，不能仅凭状态断定密钥无效。
+    const message = status === 401
+      ? `${provider}拒绝了当前服务端 API Key（HTTP 401）。请由作品维护者检查或更新密钥，无需更换应用登录账号。`
+      : status === 403
+        ? `${provider}模型服务拒绝了请求（HTTP 403）。请由作品维护者检查模型权限或服务限制。`
+        : status === 429 ? `${provider}请求过于频繁或额度不足，请稍后重试并检查额度。` : `${provider}暂时不可用（HTTP ${status}）。`;
+    try { await response.body?.cancel(); } catch { /* 正文释放失败不覆盖原有错误分类。 */ }
     throw new ApiError(status === 429 ? 429 : 502, message, "UPSTREAM_ERROR");
   }
   // 不向客户端转发上游原始错误，防止密钥或内部信息被带回。
