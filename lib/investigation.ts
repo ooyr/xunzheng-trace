@@ -1,3 +1,4 @@
+import { getBranchAnswer, isAnswerCurrent, verdictLabel } from "./answers";
 import type { Commit, Evidence, Investigation, SourceId } from "./types";
 
 export const SOURCE_OPTIONS: { id: SourceId; name: string; short: string; description: string; color: string }[] = [
@@ -34,15 +35,19 @@ export function appendCommit(item: Investigation, value: Omit<Commit, "id" | "pa
   return { ...item, commits: [...item.commits, commit], branches: item.branches.map((b) => b.id === branch.id ? { ...b, head: commit.id } : b), updatedAt: commit.createdAt };
 }
 export function makeReport(item: Investigation): string {
+  const savedAnswer = getBranchAnswer(item);
+  const currentAnswer = savedAnswer && isAnswerCurrent(item, savedAnswer) ? savedAnswer : undefined;
+  const answerLines = currentAnswer ? ["", "## 可能答案与暂定结论", "", `- 判断状态：${verdictLabel(currentAnswer.verdict)}（${currentAnswer.origin === "model" ? "模型整理，待核读" : "人工判断"}）`, "", currentAnswer.answer, "", "### 判断依据", "", currentAnswer.reason, "", ...currentAnswer.evidenceIds.map(id => { const entry = item.evidence.find(value => value.id === id)!; return `- [${entry.title}](${entry.url})`; }), "", "### 未解问题与限制", "", ...currentAnswer.limitations.map(value => `- ${value}`)] : savedAnswer ? ["", "## 可能答案与暂定结论", "", "原有答案依据的调查问题、查询或资料已变化，答案已过期，请重新核验后保存。旧答案不作为当前结论展示。"] : ["", "## 可能答案与暂定结论", "", "尚未整理答案。可以根据当前分支资料生成可能答案，或核读原文后保存人工判断；没有可靠依据时应保留证据不足。"];
   const evidence = branchEvidence(item);
   const branch = item.branches.find((b) => b.id === item.activeBranch)!;
   return [
     `# ${item.title}`, "", `> ${item.id === "case-demo" ? "演示档案：含预置示例或模板步骤，不代表已完成真实 API 查询。" : item.mode === "demo" ? "规则计划档案：仅保存待查步骤，尚未完成真实 API 查询，不能作为事实结论。" : "调查记录：检索摘要仍需对照原始页面核验。"}`,
     "", `- 调查问题：${item.input}`, `- 当前分支：${branch.name}`, `- 生成时间：${new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" })}（北京时间）`, `- 来源范围：${item.sources.map(sourceName).join("、")}`,
     "", "## 当前判断", "", evidence.length ? "以下是已收集资料及人工标记。支持或反驳标签表示资料与主张的关系，不等于最终事实裁定；请核对正文、发布日期及适用条件。" : "证据不足。目前没有可引用来源，无法对主张作出判断。",
+    ...answerLines,
     "", "## 调查步骤", "", ...item.steps.map((s, i) => `${i + 1}. ${s.title} — ${s.status === "done" ? "已检索，待核读原文" : s.status === "blocked" ? "等待接入或补充资料" : "待执行"}\n   查询词：${s.query}`),
     "", "## 证据与来源", "", ...evidence.map((e, i) => `### [${i + 1}] ${e.title}\n\n- 原文：${e.url}\n- 来源类别：${sourceName(e.source)}\n- 关系标记：${relationName(e.relation)}\n- 收录时间：${e.retrievedAt}${e.publishedAt ? `\n- 发布日期：${e.publishedAt}` : ""}\n- 数据类型：${e.kind === "demo" ? "预置演示资料" : e.kind === "manual" ? "人工添加" : "搜索接口返回"}\n\n${e.snippet}\n`),
-    "## 调查版本", "", ...branchCommits(item).map((c) => `- \`${shortId(c.id)}\` ${c.title}（父节点：${c.parents.map(shortId).join(", ") || "无"}）`),
+    "## 调查版本", "", ...branchCommits(item).map((c) => `- \`${shortId(c.id)}\` ${c.title}（父节点：${c.parents.map(shortId).join(", ") || "无"}）${c.note ? `\n  人工笔记：${c.note}` : ""}`),
     "", "## 未解决的问题", "", "- 搜索摘要可能遗漏上下文，需打开原文核对。", "- 多篇转载不等于多个独立证据。", "- 未被索引、登录后可见或已删除的内容可能无法检索。", "- 尚未完成的步骤与相反证据需要继续核查。", "", "由 循证 Trace 导出 · 让结论有迹可循。",
   ].join("\n");
 }

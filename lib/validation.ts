@@ -1,4 +1,5 @@
-import type { Branch, Commit, Evidence, Investigation, PlanStep, SourceId } from "./types";
+import { answerEvidence, evidenceFingerprint } from "./answers";
+import type { BranchAnswer, Branch, Commit, Evidence, Investigation, PlanStep, SourceId } from "./types";
 
 type RecordValue = Record<string, unknown>;
 type Budget = { characters: number; records: number };
@@ -152,6 +153,8 @@ function commit(value: unknown, label: string, budget: Budget): Commit {
   const requestId = own(data, "requestId");
   if (searchMode !== undefined) result.searchMode = enumeration(searchMode, `${label}检索模式`, ["live"] as const);
   if (requestId !== undefined) result.requestId = string(requestId, `${label}请求标识`, 256, budget);
+  const note = optionalString(own(data, "note"), `${label}人工笔记`, 5000, budget);
+  if (note !== undefined) result.note = note;
   return result;
 }
 
@@ -167,12 +170,40 @@ function branch(value: unknown, label: string, budget: Budget): Branch {
   };
 }
 
+function answer(value: unknown, label: string, budget: Budget): BranchAnswer {
+  const data = object(value, label, budget);
+  const fingerprint = string(own(data, "fingerprint"), label + "资料指纹", 100, budget);
+  if (!/^a1:[0-9a-f]{16}:\d+$/.test(fingerprint)) fail(label + "资料指纹", "格式不正确");
+  const result: BranchAnswer = {
+    branchId: id(own(data, "branchId"), label + "分支编号", budget),
+    fingerprint,
+    answer: string(own(data, "answer"), label + "可能答案", 5000, budget),
+    verdict: enumeration(own(data, "verdict"), label + "判断状态", ["supported", "contradicted", "mixed", "insufficient"] as const),
+    reason: string(own(data, "reason"), label + "判断依据", 5000, budget),
+    limitations: array(own(data, "limitations"), label + "未解问题", 0, 12, (entry, entryLabel) => string(entry, entryLabel, 1000, budget, false)),
+    evidenceIds: unique(array(own(data, "evidenceIds"), label + "引用", 0, 40, (entry, entryLabel) => id(entry, entryLabel, budget)), entry => entry, label + "引用"),
+    origin: enumeration(own(data, "origin"), label + "来源", ["manual", "model"] as const),
+    createdAt: date(own(data, "createdAt"), label + "保存时间", budget),
+  };
+  if (result.verdict !== "insufficient" && !result.evidenceIds.length) fail(label, "支持、反驳或分歧判断必须有引用");
+  return result;
+}
+
 function validateReferences(item: Investigation, label: string): void {
   const stepIds = new Set(item.steps.map((entry) => entry.id));
   const evidenceIds = new Set(item.evidence.map((entry) => entry.id));
   const branchIds = new Set(item.branches.map((entry) => entry.id));
   const commits = new Map(item.commits.map((entry) => [entry.id, entry]));
   if (!branchIds.has(item.activeBranch)) fail(`${label}当前分支`, "不存在");
+  for (const value of item.answers || []) {
+    if (!branchIds.has(value.branchId)) fail(`${label}结论分支`, "不存在");
+    if (value.evidenceIds.some(id => !evidenceIds.has(id) || item.evidence.find(entry => entry.id === id)?.kind === "demo")) fail(`${label}结论引用`, "不存在或属于演示资料");
+    // 过期答案可以保留历史引用；当前答案必须严格引用本分支可达资料。
+    if (value.fingerprint === evidenceFingerprint(item, value.branchId)) {
+      const visible = new Set(answerEvidence(item, value.branchId).map(entry => entry.id));
+      if (value.evidenceIds.some(id => !visible.has(id))) fail(`${label}结论引用`, "不属于当前分支");
+    }
+  }
   for (const entry of item.branches) if (!commits.has(entry.head)) fail(`${label}分支「${entry.name}」`, "引用了不存在的末端节点");
   for (const entry of item.evidence) if (entry.stepId !== undefined && !stepIds.has(entry.stepId)) fail(`${label}证据「${entry.title}」`, "引用了不存在的步骤");
 
@@ -226,6 +257,8 @@ function investigation(value: unknown, label: string, budget: Budget): Investiga
   const report = optionalString(own(data, "report"), `${label}报告`, 200_000, budget);
   if (imageName !== undefined) result.imageName = imageName;
   if (report !== undefined) result.report = report;
+  const answers = own(data, "answers");
+  if (answers !== undefined) result.answers = unique(array(answers, `${label}分支答案`, 0, 100, (entry, entryLabel) => answer(entry, entryLabel, budget)), entry => entry.branchId, `${label}分支答案`);
   if (Date.parse(result.updatedAt) < Date.parse(result.createdAt)) fail(`${label}更新时间`, "不能早于创建时间");
   validateReferences(result, label);
   return result;

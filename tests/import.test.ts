@@ -1,9 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { fileURLToPath } from "node:url";
 import type { Investigation } from "../lib/types";
+import { importTypeScript } from "./load-typescript.mjs";
 
-const { parseBackup } = await import(new URL("../lib/validation.ts", import.meta.url).href) as typeof import("../lib/validation");
-const { createDemo } = await import(new URL("../lib/investigation.ts", import.meta.url).href) as typeof import("../lib/investigation");
+const { parseBackup } = await importTypeScript(fileURLToPath(new URL("../lib/validation.ts", import.meta.url))) as typeof import("../lib/validation");
+const { createDemo } = await importTypeScript(fileURLToPath(new URL("../lib/investigation.ts", import.meta.url))) as typeof import("../lib/investigation");
 
 function demo(): Investigation {
   return structuredClone(createDemo());
