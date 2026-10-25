@@ -198,9 +198,10 @@ export default function Home() {
   function undoNodeAction() {
     if (!nodeUndo || busy || searchLock.current || planLock.current) return;
     const latest = casesRef.current.find(item => item.id === nodeUndo.before.id);
-    if (!latest || JSON.stringify(latest) !== nodeUndo.after) { setNotice("档案已有后续修改，不能直接撤销以免覆盖新记录；可从导出备份恢复。"); return; }
-    update(latest.id, () => nodeUndo.before);
-    if (active.id === latest.id) setSelectedId(nodeUndo.selectedId);
+    if (!latest || JSON.stringify({ ...latest, activeBranch: nodeUndo.before.activeBranch }) !== nodeUndo.after) { setNotice("档案已有后续修改，不能直接撤销以免覆盖新记录；可从导出备份恢复。"); return; }
+    const restored = { ...nodeUndo.before, activeBranch: latest.activeBranch };
+    update(latest.id, () => restored);
+    if (active.id === latest.id) setSelectedId(latest.activeBranch === nodeUndo.before.activeBranch ? nodeUndo.selectedId : restored.branches.find(branch => branch.id === latest.activeBranch)!.head);
     setNodeUndo(null); setNotice("已撤销上次节点操作。");
   }
 

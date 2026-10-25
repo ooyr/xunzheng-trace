@@ -48,6 +48,19 @@ export function applySearchResult(item: Investigation, stepId: string, response:
       const id = !entry.id || usedIds.has(entry.id) ? uid("e") : entry.id;
       saved = { ...entry, id, url, stepId, kind: "search" };
       evidence.push(saved); byUrl.set(url, saved); usedIds.add(id);
+    } else if (saved.kind === "search") {
+      // 搜索资料复查时更新共享快照，保留原编号、人工关系与首次关联步骤。
+      // 不覆盖人工录入或预置示例；空摘要也不能抹掉已保存的有效资料。
+      const refreshed = {
+        ...saved,
+        ...(typeof entry.title === "string" && entry.title.trim() ? { title: entry.title } : {}),
+        ...(typeof entry.snippet === "string" && entry.snippet.trim() ? { snippet: entry.snippet } : {}),
+        ...(typeof entry.source === "string" && entry.source.trim() ? { source: entry.source } : {}),
+        ...(typeof entry.retrievedAt === "string" && entry.retrievedAt.trim() ? { retrievedAt: entry.retrievedAt } : {}),
+        ...(typeof entry.publishedAt === "string" && entry.publishedAt.trim() ? { publishedAt: entry.publishedAt } : {}),
+      };
+      evidence[evidence.indexOf(saved)] = refreshed;
+      saved = refreshed; byUrl.set(url, saved);
     }
     references.add(saved.id);
   }

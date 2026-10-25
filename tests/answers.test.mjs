@@ -92,9 +92,25 @@ test("未知引用、无引用和夹带新链接的模型断言降为证据不�
       assert.equal(answer.verdict, "insufficient"); assert.deepEqual(answer.evidenceIds, []);
       assert.equal(answer.answer, "目前证据不足，无法给出可靠的可能答案。");
     }
-    const item = fixture(); item.evidence = item.evidence.map(entry => ({ ...entry, source: "web" }));
+    const item = fixture(); item.evidence = item.evidence.map(entry => ({ ...entry, source: "web", url: `https://example.com/${entry.id}` }));
     const weak = await generateBranchAnswer(item, "main", async () => model(manual()));
     assert.equal(weak.verdict, "insufficient"); assert.match(weak.reason, /单一非机构来源/);
+  });
+});
+
+test("人工伪标official不能把单一非机构来源变成权威，模型只收到实际域名分类", async () => {
+  await configured(async () => {
+    for (const url of ["https://example.com/manual", "https://nasa.gov.evil.example/manual"]) {
+      const item = fixture();
+      item.evidence = item.evidence.map(entry => entry.id === "e-main" ? { ...entry, source: "official", kind: "manual", url } : entry);
+      const result = await generateBranchAnswer(item, "main", async (_url, options) => {
+        const data = JSON.parse(JSON.parse(options.body).messages[1].content);
+        assert.equal(data.evidence.find(entry => entry.id === "e-main").source, "web");
+        return model(manual());
+      });
+      assert.equal(result.verdict, "insufficient"); assert.match(result.reason, /单一非机构来源/);
+      assert.equal(item.evidence.find(entry => entry.id === "e-main").source, "official");
+    }
   });
 });
 
