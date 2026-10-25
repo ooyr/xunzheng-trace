@@ -37,7 +37,7 @@ export function makeReport(item: Investigation): string {
   const evidence = branchEvidence(item);
   const branch = item.branches.find((b) => b.id === item.activeBranch)!;
   return [
-    `# ${item.title}`, "", `> ${item.mode === "demo" ? "演示档案：含预置示例或模板步骤，不代表已完成真实 API 查询。" : "调查记录：检索摘要仍需对照原始页面核验。"}`,
+    `# ${item.title}`, "", `> ${item.id === "case-demo" ? "演示档案：含预置示例或模板步骤，不代表已完成真实 API 查询。" : item.mode === "demo" ? "规则计划档案：仅保存待查步骤，尚未完成真实 API 查询，不能作为事实结论。" : "调查记录：检索摘要仍需对照原始页面核验。"}`,
     "", `- 调查问题：${item.input}`, `- 当前分支：${branch.name}`, `- 生成时间：${new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" })}（北京时间）`, `- 来源范围：${item.sources.map(sourceName).join("、")}`,
     "", "## 当前判断", "", evidence.length ? "以下是已收集资料及人工标记。支持或反驳标签表示资料与主张的关系，不等于最终事实裁定；请核对正文、发布日期及适用条件。" : "证据不足。目前没有可引用来源，无法对主张作出判断。",
     "", "## 调查步骤", "", ...item.steps.map((s, i) => `${i + 1}. ${s.title} — ${s.status === "done" ? "已检索，待核读原文" : s.status === "blocked" ? "等待接入或补充资料" : "待执行"}\n   查询词：${s.query}`),
