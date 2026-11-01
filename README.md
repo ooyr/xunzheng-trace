@@ -1,5 +1,7 @@
 # 循证 Trace · AI 调查工作台
 
+![循证 Trace 项目封面：像 Git 一样调查，让结论有迹可循](docs/assets/cover.jpg)
+
 像 Git 一样调查，让结论有迹可循。输入问题或截图，拆解调查步骤，检索公开来源，用结果树整理证据，再形成带引用的可能答案。项目为 WaytoAGI 1024 侦探赛道制作。
 
 [在线体验](https://trace-detective-workbench.primehawk66.chatgpt.site/)：无需 ChatGPT 账号即可打开；访客有体验次数限制，高级功能使用作品自己的账号密码登录。
